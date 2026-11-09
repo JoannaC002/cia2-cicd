@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -22,6 +21,15 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh 'docker build --platform linux/amd64 -t cia2-cicd-app:${BUILD_NUMBER} .'
+            }
+        }
+
+        stage('Push to Artifact Registry') {
+            steps {
+                sh '''
+                    docker tag cia2-cicd-app:${BUILD_NUMBER} asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app:${BUILD_NUMBER}
+                    docker push asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app:${BUILD_NUMBER}
+                '''
             }
         }
     }
