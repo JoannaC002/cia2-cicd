@@ -25,12 +25,16 @@ pipeline {
         }
 
         stage('Push to Artifact Registry') {
-            steps {
-                sh '''
-                    docker tag cia2-cicd-app:${BUILD_NUMBER} asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app:${BUILD_NUMBER}
-                    docker push asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app:${BUILD_NUMBER}
-                '''
-            }
+    steps {
+        sh '''
+            gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://asia-south1-docker.pkg.dev
+
+            docker tag cia2-cicd-app:${BUILD_NUMBER} asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app:${BUILD_NUMBER}
+
+            docker push asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app:${BUILD_NUMBER}
+        '''
+    }
+
         }
     }
 }
