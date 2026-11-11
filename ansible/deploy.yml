@@ -1,9 +1,12 @@
-
 ---
 - name: Deploy application to Google Kubernetes Engine
   hosts: localhost
   connection: local
   gather_facts: false
+
+  vars:
+    image_tag: "7"
+    image_name: "asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app"
 
   tasks:
     - name: Update Kubernetes deployment image
@@ -13,7 +16,7 @@
           - set
           - image
           - deployment/cia2-app
-          - cia2-cicd-app=asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app:7
+          - "cia2-cicd-app={{ image_name }}:{{ image_tag }}"
 
     - name: Wait for deployment rollout
       ansible.builtin.command:
