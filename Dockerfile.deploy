@@ -1,0 +1,8 @@
+
+FROM google/cloud-sdk:slim
+
+RUN apt-get update && \
+    apt-get install -y ansible kubectl google-cloud-cli-gke-gcloud-auth-plugin && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace

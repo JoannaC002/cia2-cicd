@@ -1,0 +1,38 @@
+
+---
+- name: Verify Kubernetes deployment
+  hosts: local
+  gather_facts: false
+
+  vars:
+    deployment_name: cia2-app
+
+  tasks:
+    - name: Check deployment status
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - deployment
+          - "{{ deployment_name }}"
+      register: deployment_status
+      changed_when: false
+
+    - name: Display deployment status
+      ansible.builtin.debug:
+        var: deployment_status.stdout
+
+    - name: Check running pods
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - pods
+          - -l
+          - "app={{ deployment_name }}"
+      register: pod_status
+      changed_when: false
+
+    - name: Display pod status
+      ansible.builtin.debug:
+        var: pod_status.stdout

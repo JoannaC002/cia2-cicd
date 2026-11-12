@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -24,18 +25,44 @@ pipeline {
             }
         }
 
-      stage('Push to Artifact Registry') {
-    steps {
-        withEnv(['CLOUDSDK_CONFIG=/var/jenkins_home/.config/gcloud']) {
-            sh '''
-                gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://asia-south1-docker.pkg.dev
+        stage('Push to Artifact Registry') {
+            steps {
+                withEnv(['CLOUDSDK_CONFIG=/var/jenkins_home/.config/gcloud']) {
+                    sh '''
+                        gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://asia-south1-docker.pkg.dev
 
-                docker tag cia2-cicd-app:${BUILD_NUMBER} asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app:${BUILD_NUMBER}
+                        docker tag cia2-cicd-app:${BUILD_NUMBER} asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app:${BUILD_NUMBER}
 
-                docker push asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app:${BUILD_NUMBER}
-            '''
+                        docker push asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app:${BUILD_NUMBER}
+                    '''
+                }
+            }
         }
-    }
-}
+
+        stage('Deploy using Ansible') {
+            steps {
+                sh '''
+                    docker run --rm \
+                      -e CLOUDSDK_CONFIG=/root/.config/gcloud \
+                      -e BUILD_NUMBER=${BUILD_NUMBER} \
+                      -v /var/jenkins_home/.config/gcloud:/root/.config/gcloud \
+                      -v ${WORKSPACE}:/workspace \
+                      -w /workspace \
+                      cia2-deploy-tools:v1 \
+                      bash -c '
+                        gcloud container clusters get-credentials cia2-cluster \
+                          --zone asia-south1-a \
+                          --project cia2-cicd-joan &&
+                        ansible-playbook \
+                          -i ansible/inventory.ini \
+                          ansible/deploy.yml \
+                          -e image_tag=$BUILD_NUMBER &&
+                        ansible-playbook \
+                          -i ansible/inventory.ini \
+                          ansible/verify.yml
+                      '
+                '''
+            }
+        }
     }
 }
