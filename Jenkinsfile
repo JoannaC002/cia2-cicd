@@ -66,30 +66,5 @@ stage('Deploy using Ansible') {
 }
 
 
-        stage('Deploy using Ansible') {
-            steps {
-                sh '''
-                    docker run --rm \
-                      -e CLOUDSDK_CONFIG=/root/.config/gcloud \
-                      -e BUILD_NUMBER=${BUILD_NUMBER} \
-                      -v /var/jenkins_home/.config/gcloud:/root/.config/gcloud \
-                      -v ${WORKSPACE}:/workspace \
-                      -w /workspace \
-                      cia2-deploy-tools:v1 \
-                      bash -c '
-                        gcloud container clusters get-credentials cia2-cluster \
-                          --zone asia-south1-a \
-                          --project cia2-cicd-joan &&
-                        ansible-playbook \
-                          -i ansible/inventory.ini \
-                          ansible/deploy.yml \
-                          -e image_tag=$BUILD_NUMBER &&
-                        ansible-playbook \
-                          -i ansible/inventory.ini \
-                          ansible/verify.yml
-                      '
-                '''
-            }
-        }
     }
 }
