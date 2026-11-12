@@ -1,22 +1,44 @@
+
 ---
-- name: Deploy application to Google Kubernetes Engine
+- name: Deploy latest application image to Google Kubernetes Engine
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
-    image_tag: "7"
-    image_name: "asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app"
+    project_id: cia2-cicd-joan
+    region: asia-south1
+    repository: cia2-docker-repo
+    image_name: cia2-cicd-app
+    deployment_name: cia2-app
+    container_name: cia2-cicd-app
 
   tasks:
+    - name: Get latest Docker image tag from Artifact Registry
+      ansible.builtin.shell: |
+        gcloud artifacts docker tags list \
+          {{ region }}-docker.pkg.dev/{{ project_id }}/{{ repository }}/{{ image_name }} \
+          --format="value(tag)" |
+        grep -E '^[0-9]+$' |
+        sort -n |
+        tail -1
+      register: latest_tag
+      changed_when: false
+
+    - name: Check that an image tag was found
+      ansible.builtin.assert:
+        that:
+          - latest_tag.stdout | trim | length > 0
+        fail_msg: "No numbered Docker image tags found in Artifact Registry."
+
     - name: Update Kubernetes deployment image
       ansible.builtin.command:
         argv:
           - kubectl.exe
           - set
           - image
-          - deployment/cia2-app
-          - "cia2-cicd-app={{ image_name }}:{{ image_tag }}"
+          - deployment/{{ deployment_name }}
+          - "{{ container_name }}={{ region }}-docker.pkg.dev/{{ project_id }}/{{ repository }}/{{ image_name }}:{{ latest_tag.stdout | trim }}"
 
     - name: Wait for deployment rollout
       ansible.builtin.command:
@@ -24,7 +46,7 @@
           - kubectl.exe
           - rollout
           - status
-          - deployment/cia2-app
+          - deployment/{{ deployment_name }}
           - --timeout=180s
 
     - name: Verify deployed pods
@@ -34,4 +56,8 @@
           - get
           - pods
           - -l
-          - app=cia2-app
+          - app={{ deployment_name }}
+
+    - name: Display deployed image tag
+      ansible.builtin.debug:
+        msg: "Successfully deployed image tag {{ latest_tag.stdout | trim }}"
