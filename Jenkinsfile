@@ -19,6 +19,24 @@ pipeline {
             }
         }
 
+        stage('SonarQube Analysis') {
+            steps {
+                withCredentials([
+                    string(
+                        credentialsId: 'sonar-token',
+                        variable: 'SONAR_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+                          -Dsonar.projectKey=JoannaC002_cia2-cicd \
+                          -Dsonar.organization=joannac002 \
+                          -Dsonar.host.url=https://sonarcloud.io
+                    '''
+                }
+            }
+        }
+
         stage('Docker Build') {
             steps {
                 sh 'docker build --platform linux/amd64 -t cia2-cicd-app:${BUILD_NUMBER} .'
@@ -39,32 +57,30 @@ pipeline {
             }
         }
 
-stage('Deploy using Ansible') {
-    steps {
-        sh '''
-            docker run --rm \
-              -v jenkins_home:/var/jenkins_home \
-              -e CLOUDSDK_CONFIG=/var/jenkins_home/.config/gcloud \
-              -e HOME=/root \
-              -e BUILD_NUMBER=${BUILD_NUMBER} \
-              -w "${WORKSPACE}" \
-              cia2-deploy-tools:v1 \
-              bash -c '
-                gcloud container clusters get-credentials cia2-cluster \
-                  --zone asia-south1-a \
-                  --project cia2-cicd-joan &&
-                ansible-playbook \
-                  -i ansible/inventory.ini \
-                  ansible/deploy.yml \
-                  -e image_tag=$BUILD_NUMBER &&
-                ansible-playbook \
-                  -i ansible/inventory.ini \
-                  ansible/verify.yml
-              '
-        '''
-    }
-}
-
-
+        stage('Deploy using Ansible') {
+            steps {
+                sh '''
+                    docker run --rm \
+                      -v jenkins_home:/var/jenkins_home \
+                      -e CLOUDSDK_CONFIG=/var/jenkins_home/.config/gcloud \
+                      -e HOME=/root \
+                      -e BUILD_NUMBER=${BUILD_NUMBER} \
+                      -w "${WORKSPACE}" \
+                      cia2-deploy-tools:v1 \
+                      bash -c '
+                        gcloud container clusters get-credentials cia2-cluster \
+                          --zone asia-south1-a \
+                          --project cia2-cicd-joan &&
+                        ansible-playbook \
+                          -i ansible/inventory.ini \
+                          ansible/deploy.yml \
+                          -e image_tag=$BUILD_NUMBER &&
+                        ansible-playbook \
+                          -i ansible/inventory.ini \
+                          ansible/verify.yml
+                      '
+                '''
+            }
+        }
     }
 }
