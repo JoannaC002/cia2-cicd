@@ -1,63 +1,51 @@
 
 ---
-- name: Deploy latest application image to Google Kubernetes Engine
-  hosts: localhost
-  connection: local
+- name: Deploy application to Google Kubernetes Engine
+  hosts: local
   gather_facts: false
 
   vars:
-    project_id: cia2-cicd-joan
-    region: asia-south1
-    repository: cia2-docker-repo
-    image_name: cia2-cicd-app
     deployment_name: cia2-app
-    container_name: cia2-cicd-app
+    image_path: asia-south1-docker.pkg.dev/cia2-cicd-joan/cia2-docker-repo/cia2-cicd-app
 
   tasks:
-    - name: Get latest Docker image tag from Artifact Registry
-      ansible.builtin.shell: |
-        gcloud artifacts docker tags list \
-          {{ region }}-docker.pkg.dev/{{ project_id }}/{{ repository }}/{{ image_name }} \
-          --format="value(tag)" |
-        grep -E '^[0-9]+$' |
-        sort -n |
-        tail -1
-      register: latest_tag
-      changed_when: false
-
-    - name: Check that an image tag was found
+    - name: Check that image tag was provided
       ansible.builtin.assert:
         that:
-          - latest_tag.stdout | trim | length > 0
-        fail_msg: "No numbered Docker image tags found in Artifact Registry."
+          - image_tag is defined
+          - image_tag | string | length > 0
+        fail_msg: "Jenkins image tag was not provided."
+
+    - name: Get application container name
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - deployment
+          - "{{ deployment_name }}"
+          - -o
+          - "jsonpath={.spec.template.spec.containers[0].name}"
+      register: container
+      changed_when: false
 
     - name: Update Kubernetes deployment image
       ansible.builtin.command:
         argv:
-          - kubectl.exe
+          - kubectl
           - set
           - image
-          - deployment/{{ deployment_name }}
-          - "{{ container_name }}={{ region }}-docker.pkg.dev/{{ project_id }}/{{ repository }}/{{ image_name }}:{{ latest_tag.stdout | trim }}"
+          - "deployment/{{ deployment_name }}"
+          - "{{ container.stdout }}={{ image_path }}:{{ image_tag }}"
 
     - name: Wait for deployment rollout
       ansible.builtin.command:
         argv:
-          - kubectl.exe
+          - kubectl
           - rollout
           - status
-          - deployment/{{ deployment_name }}
+          - "deployment/{{ deployment_name }}"
           - --timeout=180s
 
-    - name: Verify deployed pods
-      ansible.builtin.command:
-        argv:
-          - kubectl.exe
-          - get
-          - pods
-          - -l
-          - app={{ deployment_name }}
-
-    - name: Display deployed image tag
+    - name: Display deployed version
       ansible.builtin.debug:
-        msg: "Successfully deployed image tag {{ latest_tag.stdout | trim }}"
+        msg: "Successfully deployed image version {{ image_tag }}"
