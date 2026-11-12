@@ -10,7 +10,7 @@ class DemoApplicationTest {
     void homeReturnsExpectedVersion() {
         DemoApplication app = new DemoApplication();
         assertEquals(
-            "CIA 2 CI/CD Pipeline - Version 3? to check final flow",
+            "CIA 2 CI/CD Pipeline - Version 4? to check final flow",
             app.home()
         );
     }

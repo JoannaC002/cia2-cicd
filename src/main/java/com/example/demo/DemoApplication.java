@@ -16,7 +16,7 @@ public class DemoApplication {
 
     @GetMapping("/")
     public String home() {
-        return "CIA 2 CI/CD Pipeline - Version 3? to check final flow";
+        return "CIA 2 CI/CD Pipeline - Version 4? to check final flow";
     }
 
     @GetMapping("/health")
